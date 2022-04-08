@@ -41,7 +41,7 @@ double degree(float a, float b)
 	}
 }
 
-
+//начинает процедуру ввода векторного выражения
 void vectorCalculation(char operation)
 {
 	float vector_size;
@@ -90,6 +90,9 @@ void vectorCalculation(char operation)
 		printf("%g\n", scalar);
 
 	}
+
+	free(vector_1);
+	free(vector_2);
 }
 
 
