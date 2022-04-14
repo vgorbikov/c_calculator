@@ -68,10 +68,10 @@ void vectorCalculation(char operation)
 	scanf(" %c", &operation);
 
 	printf("Введите первый вектор (каждая координата через перевод строки): ");
-	for(int i=vector_size; i>0; i--) scanf("%f", &vector_1[i]);
+	for(int i=0; i<vectorSize; i++) scanf("%f", &vector_1[i]);
 
 	printf("Введите второй вектор (каждая координата через перевод строки): ");
-		for(int i=vector_size; i>0; i--) scanf("%f", &vector_2[i]);
+	for(int i=0; i<vectorSize; i++) scanf("%f", &vector_2[i]);;
 
 	printf("Ответ: ");
 
