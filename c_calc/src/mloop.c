@@ -68,25 +68,25 @@ void vectorCalculation(char operation)
 	scanf(" %c", &operation);
 
 	printf("Введите первый вектор (каждая координата через перевод строки): ");
-	for(int i=0; i<vectorSize; i++) scanf("%f", &vector_1[i]);
+	for(int i=0; i<vector_size; i++) scanf("%f", &vector_1[i]);
 
 	printf("Введите второй вектор (каждая координата через перевод строки): ");
-	for(int i=0; i<vectorSize; i++) scanf("%f", &vector_2[i]);;
+	for(int i=0; i<vector_size; i++) scanf("%f", &vector_2[i]);
 
 	printf("Ответ: ");
 
 	switch (operation)
 	{
 	case '+':
-		for(int i=vector_size; i>0; i--) printf("%g ", vector_1[i]+vector_2[i]);
+		for(int i=0; i<vector_size; i++) printf("%g ", vector_1[i]+vector_2[i]);
 		printf("\n");
 		break;
 	case '-':
-		for(int i=vector_size; i>0; i--) printf("%g ", vector_1[i]-vector_2[i]);
+		for(int i=0; i<vector_size; i++) printf("%g ", vector_1[i]-vector_2[i]);
 		printf("\n");
 		break;
 	case 's':
-		for(int i=vector_size; i>0; i--) scalar += vector_1[i]*vector_2[i];
+		for(int i=0; i<vector_size; i++) scalar += vector_1[i]*vector_2[i];
 		printf("%g\n", scalar);
 
 	}
