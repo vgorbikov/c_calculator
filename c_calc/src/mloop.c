@@ -24,6 +24,7 @@ long long int factorial(int a)
 	}
 }
 
+
 //Возводит а в степень b, принимает на вход два вещественных числа
 //Возвращает вещественное число
 //Не предусмотренна работа с отрицательными и дробными степенями
@@ -41,78 +42,84 @@ double degree(float a, float b)
 	}
 }
 
-//начинает процедуру ввода векторного выражения
-void vectorCalculation(char operation)
+
+//начинает процедуру обработки векторного выражения
+//принимает знак заданной операции, а также указатель на файл для чтения и на файл для записи
+void vectorCalculation(char operation, FILE *inpFile, FILE *outFile)
 {
-	float vector_size;
+	float vectorSize_temp; //после введения размерность ещё будет проходить проверку на целость
 	float *vector_1;
 	float *vector_2;
 	float scalar;
 
-	while (1)
+	//читаем размерность векторов из файла
+	fscanf(inpFile, "%f", &vectorSize_temp);
+
+	//проводим небольшую проверку на целость числа - если число целое, fractionSize = 1
+	int wholeSize = vectorSize_temp;
+	float fractionSize = vectorSize_temp/wholeSize;
+	if (fractionSize != 1) fprintf(outFile, "|!|Размерность должна быть целым числом|!|\n");
+
+	int vectorSize = vectorSize_temp;
+	//выделяем необходимое количество памяти под хранение координат
+	vector_1 = malloc(vectorSize*sizeof(float));
+	vector_2 = malloc(vectorSize*sizeof(float));
+
+	//читаем координаты каждого вектора
+	for(int i=0; i<vectorSize; i++) fscanf(inpFile, "%f", &vector_1[i]);
+	for(int i=0; i<vectorSize; i++) fscanf(inpFile, "%f", &vector_2[i]);
+
+	//операция, принимающая на вход массив чисел (вектор) и печатающая его в файл, с соблюдением принятого оформления (скобки, запятые)
+	void printVector(float *vector)
 	{
-	printf("Введите размерность векторов: ");
-	scanf("%f", &vector_size);
-
-	int wholeSize = vector_size;
-	float fractionSize = vector_size/wholeSize;
-
-	if (fractionSize == 1) break;
-	else printf("|!|Размерность должна быть целым числом|!|\n");
+		fprintf(outFile, "(");
+		for(int i = 0; i<(vectorSize - 1); i++) fprintf(outFile, "%g, ", vector[i]);
+		fprintf(outFile, "%g)", vector[vectorSize - 1]);
 	}
 
-	vector_1 = malloc(vector_size*sizeof(float));
-	vector_2 = malloc(vector_size*sizeof(float));
+	//печатаем левую часть выражения
+	printVector(vector_1);
+	fprintf(outFile, " %c ", operation);
+	printVector(vector_2);
+	fprintf(outFile, " = ");
 
-	printf("Выберите операцию (+ - s): ");
-	scanf(" %c", &operation);
-
-	printf("Введите первый вектор (каждая координата через перевод строки): ");
-	for(int i=0; i<vector_size; i++) scanf("%f", &vector_1[i]);
-
-	printf("Введите второй вектор (каждая координата через перевод строки): ");
-	for(int i=0; i<vector_size; i++) scanf("%f", &vector_2[i]);
-
-	printf("Ответ: ");
+	float result[vectorSize]; //переменная для хранения результата в векторном виде
 
 	switch (operation)
 	{
 	case '+':
-		for(int i=0; i<vector_size; i++) printf("%g ", vector_1[i]+vector_2[i]);
-		printf("\n");
+		for(int i=0; i<vectorSize; i++) result[i] = vector_1[i]+vector_2[i];
+		printVector(result);
+		fprintf(outFile, "\n");
 		break;
 	case '-':
-		for(int i=0; i<vector_size; i++) printf("%g ", vector_1[i]-vector_2[i]);
-		printf("\n");
+		for(int i=0; i<vectorSize; i++) result[i] = vector_1[i]-vector_2[i];
+		printVector(result);
+		fprintf(outFile, "\n");
 		break;
-	case 's':
-		for(int i=0; i<vector_size; i++) scalar += vector_1[i]*vector_2[i];
-		printf("%g\n", scalar);
+	case '^':
+		for(int i=0; i<vectorSize; i++) scalar += vector_1[i]*vector_2[i];
+		fprintf(outFile, "%g\n", scalar);
+		break;
+	default:
+		fprintf(outFile, "|!|Такая операция для векторов не определена: %c|!|\n", operation);
 
 	}
-
+	//освобождаем память, которую выделяли под хранение векторов
 	free(vector_1);
 	free(vector_2);
 }
 
 
-
-//Начинает стандартную процедуру ввода математического выражения
-//В  формате запрос-ответ, с отдельным вводом каждого операнда и знака операции
-void simpleArithmetic(char operation)
+//начинает процедуру обработки класического арифметического выражения
+//принимает знак заданной операции, а также указатель на файл для чтения и на файл для записи
+void simpleArithmetic(char operation, FILE *inpFile, FILE *outFile)
 {
 	float a, b=1; //Переменные, хранящие значение будущих операндов. Второй операнд имеет значение по умолчанию -
 				 //сделано это для того чтобы избежать ошибки при проверке числа на целость, которая выполняется в любом случае,
 				 //хотя второй операнд не всегда получает значение при вводе с клавиатуры.
 
-	//Запрашивает ввод операнда, сохраняет ввод в переменную, указатель на которую получает при вызове
-	void operandInput(float *variable)
-	{
-		printf("Введите операнд: ");
-		scanf("%f", variable);
-	}
-
-	operandInput(&a);
+	fscanf(inpFile, "%f", &a);
 
 	int wholeA = a; //получаем целую часть числа
 	float fractionA = a/wholeA; //делим исходное число на целую. (если в результате получится единица - число целое)
@@ -120,7 +127,7 @@ void simpleArithmetic(char operation)
 	//Если выбрана операция факториала, второй операнд не запрашиваем
 	if (operation != '!')
 	{
-		operandInput(&b);
+		fscanf(inpFile, "%f", &b);
 	}
 
 	int wholeB = b; //также выполняем проверку числа b на предмет целости
@@ -129,34 +136,34 @@ void simpleArithmetic(char operation)
 	switch (operation)
 	{
 	case '+':
-		printf("%g %c %g = %g\n", a, operation, b, a+b);
+		fprintf(outFile, "%g %c %g = %g\n", a, operation, b, a+b);
 		break;
 
 	case '-':
-		printf("%g %c %g = %g\n", a, operation, b, a-b);
+		fprintf(outFile, "%g %c %g = %g\n", a, operation, b, a-b);
 		break;
 
 	case '*':
-		printf("%g %c %g = %g\n", a, operation, b, a*b);
+		fprintf(outFile, "%g %c %g = %g\n", a, operation, b, a*b);
 		break;
 
 	case '/':
-		if (b == 0) printf("|!|Ошибка: деление на ноль не допустимо|!|\n");
-		else printf("%g %c %g = %g\n", a, operation, b, a/b);
+		if (b == 0) fprintf(outFile, "|!|Ошибка: деление на ноль не допустимо|!|\n");
+		else fprintf(outFile, "%g %c %g = %g\n", a, operation, b, a/b);
 		break;
 
 	case '!':
-		if ((fractionA != 1)||(a<0)) printf("|!|Ошибка: под знаком факториала должно стоять целое неотрицательное число|!|\n");
-		else printf("%g%c = %lli\n", a, operation, factorial(a));
+		if ((fractionA != 1)||(a<0)) fprintf(outFile, "|!|Ошибка: под знаком факториала должно стоять целое неотрицательное число|!|\n");
+		else fprintf(outFile, "%g%c = %lli\n", a, operation, factorial(a));
 		break;
 
 	case '^':
-		if ((fractionB != 1)||(b<0)) printf("|!|Ошибка: степень должна быть целым неотрицательным числом|!|\n");
-		else printf("%g%c%g = %g\n", a, operation, b, degree(a, b));
+		if ((fractionB != 1)||(b<0)) fprintf(outFile, "|!|Ошибка: степень должна быть целым неотрицательным числом|!|\n");
+		else fprintf(outFile, "%g%c%g = %g\n", a, operation, b, degree(a, b));
 		break;
 
 	default:
-		printf("|!|Была введена некорректная операция|!|\n");
+		fprintf(outFile, "|!|Была введена некорректная операция: %c|!|\n", operation);
 	}
 }
 
@@ -166,24 +173,47 @@ int main( int argc, char* argv[])
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
 
-	printf ("Доступные операции:\n+ Сложение\n- Вычитание\n* Умножение\n/ Деление\n^ Возведение в степень\n! Факториал\n\n");
-	printf ("В векторном меню (введите \"v\" для перехода) доступны операции:\n+ Сложение\n- Вычитание\ns Скалярное произведение\n\n");
+
+
+	printf ("Каждая строчка во входном файле должна быть оформленна в формате:\n");
+	printf ("ОПЕРАЦИЯ ТИП_ДАННЫХ РАЗМЕРНОСТЬ(только для векторов) ОПЕРАНДЫ(через пробел)\n");
+	printf ("|!|Для получения более подробной информации читайте файл README|!|\n\n");
 	while (1) //Главный цикл, раз за разом запускает операцию ввода математического выражения.
 	{
-		char choice;
-		char operation;
+		char choice, operation, type; //type - переменная для хранения типа операндов
+		char inputFname[255];
+		char outputFname[255];
 
-		printf("Введите операцию (+ - / * ^ !) или введите \"v\" для работы с векторами: ");
-		scanf(" %c", &operation);
 
-		//в зависимости от выбранной операции вызываем функцию для работы с векторами, либо с вещественными числами
-		if ((operation == 'v')||(operation == 'V')) vectorCalculation(operation);
-		else simpleArithmetic(operation);
+		printf("Введите имя входного файла: ");
+		scanf("%s", &inputFname);
+
+		printf("Введите имя выходного файла: ");
+		scanf("%s", &outputFname);
+
+		FILE *input = fopen(inputFname, "r");
+		FILE *output = fopen(outputFname, "w");
+
+		while(fscanf(input, " %c %c", &operation, &type) != EOF) //читаем посторчно, пока не достигнем конца
+		{
+			if(type == 'v') vectorCalculation(operation, input, output);
+			else if(type == 's') simpleArithmetic(operation, input, output);
+			else
+			{	//если данный тип операндов неизвестен - пропускаем строку
+				fgets(outputFname, 100, input); //"сжигаем" оставшуюся часть строки (пожалуй можно реализовать гораздо умнее)
+				fprintf(output, "|!|Неизвестный тип данных: %c|!|\n", type);
+			}
+		}
+
+		//закрываем файлы после завершения работы с ними
+		fclose(input);
+		fclose(output);
 
 		//предлагаем пользователю продолжить использование программы
 		printf("Хотите продолжить? (y/n) \n");
 		scanf(" %c", &choice);
 		if (choice == 'n') break;
+
 	}
 
 
