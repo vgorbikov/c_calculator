@@ -8,6 +8,64 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+//структура элементов списка заданий
+typedef struct listElement{
+	//есть поля как для хранения строковых данных, так и для числовых
+	float *v1, *v2, *result;
+	char operation, type;
+	float vSize, a, b, r;
+	struct listElement *nextElement;
+} lElement;
+
+
+//позволяет работать со списком как с самостоятельной структурной единицей
+//(при том всё ещё состоящей из отдельных элементов)
+typedef struct list
+{
+	lElement *head;
+	lElement *current;
+} list;
+
+
+//функция для добавления в список нового элемента
+int listAppend(list *toThisList, lElement *newElement)
+{
+	if(toThisList->head == NULL)
+	{
+		toThisList->head = newElement;
+		toThisList->current = newElement;
+		return 0;
+	}
+	toThisList->current->nextElement = newElement;
+	toThisList->current = newElement;
+	return 0;
+}
+
+
+lElement *nextElement(list *inThisList)
+{
+	lElement *next = inThisList->current->nextElement;
+	inThisList->current =  next;
+	return next;
+}
+
+int goToHeadElement(list *inThisList)
+{
+	inThisList->current =  inThisList->head;
+	return 0;
+}
+
+int delElement(list *inThisList)
+{
+	lElement *deleted = inThisList->current;
+	goToHeadElement(inThisList);
+	while(inThisList->current->nextElement != deleted) nextElement(inThisList);
+	inThisList->current->nextElement = deleted->nextElement;
+	if(deleted->nextElement != NULL) inThisList->current = deleted->nextElement;
+	return 0;
+}
+
+
 //Принимает на вход целое неотрицательное число
 //Возвращает его факториал
 long long int factorial(int a)
@@ -45,126 +103,91 @@ double degree(float a, float b)
 
 //начинает процедуру обработки векторного выражения
 //принимает знак заданной операции, а также указатель на файл для чтения и на файл для записи
-void vectorCalculation(char operation, FILE *inpFile, FILE *outFile)
+void vectorCalculation(char operation, lElement *task)
 {
-	float vectorSize_temp; //после введения размерность ещё будет проходить проверку на целость
-	float *vector_1;
-	float *vector_2;
 	float scalar;
-
-	//читаем размерность векторов из файла
-	fscanf(inpFile, "%f", &vectorSize_temp);
-
+	int vectorSize = task->vSize;
 	//проводим небольшую проверку на целость числа - если число целое, fractionSize = 1
-	int wholeSize = vectorSize_temp;
-	float fractionSize = vectorSize_temp/wholeSize;
-	if (fractionSize != 1) fprintf(outFile, "|!|Размерность должна быть целым числом|!|\n");
-
-	int vectorSize = vectorSize_temp;
-	//выделяем необходимое количество памяти под хранение координат
-	vector_1 = malloc(vectorSize*sizeof(float));
-	vector_2 = malloc(vectorSize*sizeof(float));
-
-	//читаем координаты каждого вектора
-	for(int i=0; i<vectorSize; i++) fscanf(inpFile, "%f", &vector_1[i]);
-	for(int i=0; i<vectorSize; i++) fscanf(inpFile, "%f", &vector_2[i]);
-
-	//операция, принимающая на вход массив чисел (вектор) и печатающая его в файл, с соблюдением принятого оформления (скобки, запятые)
-	void printVector(float *vector)
-	{
-		fprintf(outFile, "(");
-		for(int i = 0; i<(vectorSize - 1); i++) fprintf(outFile, "%g, ", vector[i]);
-		fprintf(outFile, "%g)", vector[vectorSize - 1]);
-	}
-
-	//печатаем левую часть выражения
-	printVector(vector_1);
-	fprintf(outFile, " %c ", operation);
-	printVector(vector_2);
-	fprintf(outFile, " = ");
-
-	float result[vectorSize]; //переменная для хранения результата в векторном виде
+//	int wholeSize = task->vSize;
+//	float fractionSize = task->vSize/wholeSize;
+//	if (fractionSize != 1) fprintf(outFile, "|!|Размерность должна быть целым числом|!|\n");
 
 	switch (operation)
 	{
 	case '+':
-		for(int i=0; i<vectorSize; i++) result[i] = vector_1[i]+vector_2[i];
-		printVector(result);
-		fprintf(outFile, "\n");
+		for(int i=0; i<vectorSize; i++)
+		{
+		float n = task->v1[i]+task->v2[i];
+		task->result[i] = 4;
+		}
+		printf("%g", task->result[0]);
+		//free(task->v1);
 		break;
 	case '-':
-		for(int i=0; i<vectorSize; i++) result[i] = vector_1[i]-vector_2[i];
-		printVector(result);
-		fprintf(outFile, "\n");
+		for(int i=0; i<vectorSize; i++) task->result[i] = task->v1[i]-task->v2[i];
+		//free(task->v1);
 		break;
 	case '^':
-		for(int i=0; i<vectorSize; i++) scalar += vector_1[i]*vector_2[i];
-		fprintf(outFile, "%g\n", scalar);
+		for(int i=0; i<vectorSize; i++) scalar += task->v1[i]*task->v2[i];
+		task->r = scalar;
 		break;
-	default:
-		fprintf(outFile, "|!|Такая операция для векторов не определена: %c|!|\n", operation);
+//	default:
+//		fprintf(outFile, "|!|Такая операция для векторов не определена: %c|!|\n", operation);
 
 	}
-	//освобождаем память, которую выделяли под хранение векторов
-	free(vector_1);
-	free(vector_2);
 }
 
 
 //начинает процедуру обработки класического арифметического выражения
 //принимает знак заданной операции, а также указатель на файл для чтения и на файл для записи
-void simpleArithmetic(char operation, FILE *inpFile, FILE *outFile)
+void simpleArithmetic(char operation, lElement *task)
 {
-	float a, b=1; //Переменные, хранящие значение будущих операндов. Второй операнд имеет значение по умолчанию -
+	float result; //Переменные, хранящие значение будущих операндов. Второй операнд имеет значение по умолчанию -
 				 //сделано это для того чтобы избежать ошибки при проверке числа на целость, которая выполняется в любом случае,
 				 //хотя второй операнд не всегда получает значение при вводе с клавиатуры.
 
-	fscanf(inpFile, "%f", &a);
+//	int wholeA = a; //получаем целую часть числа
+//	float fractionA = a/wholeA; //делим исходное число на целую. (если в результате получится единица - число целое)
 
-	int wholeA = a; //получаем целую часть числа
-	float fractionA = a/wholeA; //делим исходное число на целую. (если в результате получится единица - число целое)
-
-	//Если выбрана операция факториала, второй операнд не запрашиваем
-	if (operation != '!')
-	{
-		fscanf(inpFile, "%f", &b);
-	}
-
-	int wholeB = b; //также выполняем проверку числа b на предмет целости
-	float fractionB = b/wholeB;
+//	int wholeB = b; //также выполняем проверку числа b на предмет целости
+//	float fractionB = b/wholeB;
 
 	switch (operation)
 	{
 	case '+':
-		fprintf(outFile, "%g %c %g = %g\n", a, operation, b, a+b);
+		result = task->a + task->b;
 		break;
 
 	case '-':
-		fprintf(outFile, "%g %c %g = %g\n", a, operation, b, a-b);
+		result = task->a - task->b;
 		break;
 
 	case '*':
-		fprintf(outFile, "%g %c %g = %g\n", a, operation, b, a*b);
+		result = task->a*task->b;
 		break;
 
 	case '/':
-		if (b == 0) fprintf(outFile, "|!|Ошибка: деление на ноль не допустимо|!|\n");
-		else fprintf(outFile, "%g %c %g = %g\n", a, operation, b, a/b);
+//		if (b == 0) fprintf(outFile, "|!|Ошибка: деление на ноль не допустимо|!|\n");
+//		else
+		result = task->a/task->b;
 		break;
 
 	case '!':
-		if ((fractionA != 1)||(a<0)) fprintf(outFile, "|!|Ошибка: под знаком факториала должно стоять целое неотрицательное число|!|\n");
-		else fprintf(outFile, "%g%c = %lli\n", a, operation, factorial(a));
+//		if ((fractionA != 1)||(a<0)) fprintf(outFile, "|!|Ошибка: под знаком факториала должно стоять целое неотрицательное число|!|\n");
+//		else
+		result = factorial(task->a);
 		break;
 
 	case '^':
-		if ((fractionB != 1)||(b<0)) fprintf(outFile, "|!|Ошибка: степень должна быть целым неотрицательным числом|!|\n");
-		else fprintf(outFile, "%g%c%g = %g\n", a, operation, b, degree(a, b));
+//		if ((fractionB != 1)||(b<0)) fprintf(outFile, "|!|Ошибка: степень должна быть целым неотрицательным числом|!|\n");
+//		else
+		result = degree(task->a, task->b);
 		break;
 
-	default:
-		fprintf(outFile, "|!|Была введена некорректная операция: %c|!|\n", operation);
+//	default:
+//		fprintf(outFile, "|!|Была введена некорректная операция: %c|!|\n", operation);
 	}
+	task->r = result;
 }
 
 
@@ -172,8 +195,6 @@ int main( int argc, char* argv[])
 {
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
-
-
 
 	printf ("Каждая строчка во входном файле должна быть оформленна в формате:\n");
 	printf ("ОПЕРАЦИЯ ТИП_ДАННЫХ РАЗМЕРНОСТЬ(только для векторов) ОПЕРАНДЫ(через пробел)\n");
@@ -183,6 +204,7 @@ int main( int argc, char* argv[])
 		char choice, operation, type; //type - переменная для хранения типа операндов
 		char inputFname[255];
 		char outputFname[255];
+		float firstNum;
 
 
 		printf("Введите имя входного файла: ");
@@ -191,31 +213,95 @@ int main( int argc, char* argv[])
 		printf("Введите имя выходного файла: ");
 		scanf("%s", &outputFname);
 
+		//создаём список, который будет хранить входные данные для подсчёта
+		list *tasks = calloc(1, sizeof(list));
 		FILE *input = fopen(inputFname, "r");
-		FILE *output = fopen(outputFname, "w");
 
-		while(fscanf(input, " %c %c", &operation, &type) != EOF) //читаем посторчно, пока не достигнем конца
+		while(fscanf(input, " %c %c %f", &operation, &type, &firstNum) != EOF) //читаем посторчно, пока не достигнем конца
 		{
-			if(type == 'v') vectorCalculation(operation, input, output);
-			else if(type == 's') simpleArithmetic(operation, input, output);
+			lElement *newTask = malloc(sizeof(lElement));
+			newTask->operation = operation;
+			newTask->type = type;
+			if(type == 'v')
+			{
+				newTask->vSize = firstNum;
+				newTask->v1 = malloc(firstNum*sizeof(float));
+				newTask->v2 = malloc(firstNum*sizeof(float));
+				newTask->result = malloc(firstNum*sizeof(float));
+				for(int i=0; i<firstNum; i++) fscanf(input, "%f", &newTask->v1[i]);
+				for(int i=0; i<firstNum; i++) fscanf(input, "%f", &newTask->v2[i]);
+			}
+			else if(type == 's')
+			{	//операнды-невектора будем хранить в списке v1
+				newTask->a = firstNum;
+				if(operation != '!') fscanf(input, "%f", &newTask->b);
+			}
+			else
+			{	//если данный тип операндов неизвестен - пропускаем строку
+				fgets(inputFname, 100, input); //"сжигаем" оставшуюся часть строки (пожалуй можно реализовать гораздо умнее)
+			}
+			listAppend(tasks, newTask);
+		}
+		//закрываем файл после завершения чтения
+		fclose(input);
+
+		goToHeadElement(tasks);
+
+		printf("ok r\n");
+
+		while(tasks->current != NULL) //пока не достигнем конца списка
+		{
+			if(tasks->current->type == 'v') vectorCalculation(operation, tasks->current);
+			else if(tasks->current->type == 's') simpleArithmetic(operation, tasks->current);
 			else
 			{	//если данный тип операндов неизвестен - пропускаем строку
 				fgets(outputFname, 100, input); //"сжигаем" оставшуюся часть строки (пожалуй можно реализовать гораздо умнее)
-				fprintf(output, "|!|Неизвестный тип данных: %c|!|\n", type);
+//				fprintf(output, "|!|Неизвестный тип данных: %c|!|\n", type);
 			}
+			nextElement(tasks);
 		}
 
-		//закрываем файлы после завершения работы с ними
-		fclose(input);
+		goToHeadElement(tasks);
+
+		printf("ok c\n");
+
+		FILE *output = fopen(outputFname, "w");
+		while(tasks->current != NULL) //пока не достигнем конца списка
+		{
+			lElement *curT = tasks->current;
+			//операция, принимающая на вход массив чисел и печатающая его в файл, с соблюдением принятого оформления
+			void printVector(float *vector, int size)
+			{
+				fprintf(output, "(");
+				for(int i = 0; i<(size - 1); i++) fprintf(output, "%g, ", vector[i]);
+				fprintf(output, "%g)", vector[size - 1]);
+			}
+
+			if(curT->type == 's')
+			{
+				if(curT->operation != '!') fprintf(output, "%g %c %g = %g", curT->a, curT->operation, curT->b, curT->r);
+				else fprintf(output, "%g! = %g", curT->a, curT->r);
+			}
+			else if(curT->type == 'v')
+			{
+				printVector(curT->v1, curT->vSize);
+				fprintf(output, " %c ", curT->operation);
+				printVector(curT->v2, curT->vSize);
+				fprintf(output, " = ");
+				if(curT->operation != '^') printVector(curT->result, curT->vSize);
+				else fprintf(output, "%f", curT->r);
+			}
+			fprintf(output, "\n");
+			nextElement(tasks);
+		}
 		fclose(output);
+
+		printf("ok w\n");
 
 		//предлагаем пользователю продолжить использование программы
 		printf("Хотите продолжить? (y/n) \n");
 		scanf(" %c", &choice);
 		if (choice == 'n') break;
-
 	}
-
-
 	return 0;
 }
