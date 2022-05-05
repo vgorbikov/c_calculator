@@ -15,6 +15,7 @@ typedef struct listElement{
 	char operation, type; //поля для хранения информации о операции и типе операндов
 	float a, b, r, vSize; //поля для хранения исходных данных и результата операций с числами
 	long long int fact; //отдельно поле для результата факториала
+	char *msg; //поле для вывода сообщений об ошибках
 	struct listElement *nextElement;
 } lElement;
 
@@ -58,10 +59,19 @@ int goToHeadElement(list *inThisList)
 int delElement(list *inThisList)
 {
 	lElement *deleted = inThisList->current;
-	goToHeadElement(inThisList);
-	while(inThisList->current->nextElement != deleted) nextElement(inThisList);
-	inThisList->current->nextElement = deleted->nextElement;
-	if(deleted->nextElement != NULL) inThisList->current = deleted->nextElement;
+	if(deleted == inThisList->head)
+	{
+		inThisList->head = deleted->nextElement;
+		nextElement(inThisList);
+	}
+	else
+	{
+		goToHeadElement(inThisList);
+		while(inThisList->current->nextElement != deleted) nextElement(inThisList);
+		inThisList->current->nextElement = deleted->nextElement;
+		if(deleted->nextElement != NULL) inThisList->current = deleted->nextElement;
+	}
+	free(deleted);
 	return 0;
 }
 
@@ -105,11 +115,12 @@ double degree(float a, float b)
 //принимает знак заданной операции, а также указатель на файл для чтения и на файл для записи
 void vectorCalculation(char operation, lElement *task)
 {
-	int vectorSize = task->vSize;
 	//проводим небольшую проверку на целость числа - если число целое, fractionSize = 1
-//	int wholeSize = task->vSize;
-//	float fractionSize = task->vSize/wholeSize;
-//	if (fractionSize != 1) fprintf(outFile, "|!|Размерность должна быть целым числом|!|\n");
+	int wholeSize = task->vSize;
+	float fractionSize = task->vSize/wholeSize;
+	if (fractionSize != 1) task->msg = "|!|Размерность должна быть целым числом|!|";
+
+	int vectorSize = task->vSize;
 
 	task->result = calloc(vectorSize, sizeof(float));
 	switch (operation)
@@ -124,10 +135,9 @@ void vectorCalculation(char operation, lElement *task)
 		task->r = 0;
 		for(int i=0; i<vectorSize; i++) task->r += task->v1[i]*task->v2[i];
 		break;
-//	default:
-//		fprintf(outFile, "|!|Такая операция для векторов не определена: %c|!|\n", operation);
+	default:
+		task->msg = "|!|Такая операция для векторов не определена|!|";
 	}
-	//printf("%g ", task->r);
 }
 
 
@@ -135,11 +145,11 @@ void vectorCalculation(char operation, lElement *task)
 //принимает знак заданной операции, а также указатель на файл для чтения и на файл для записи
 void simpleArithmetic(char operation, lElement *task)
 {
-//	int wholeA = a; //получаем целую часть числа
-//	float fractionA = a/wholeA; //делим исходное число на целую. (если в результате получится единица - число целое)
+	int wholeA = task->a; //получаем целую часть числа
+	float fractionA = task->a/wholeA; //делим исходное число на целую. (если в результате получится единица - число целое)
 
-//	int wholeB = b; //также выполняем проверку числа b на предмет целости
-//	float fractionB = b/wholeB;
+	int wholeB = task->b; //также выполняем проверку числа b на предмет целости
+	float fractionB = task->b/wholeB;
 
 	switch (operation)
 	{
@@ -153,22 +163,19 @@ void simpleArithmetic(char operation, lElement *task)
 		task->r = task->a*task->b;
 		break;
 	case '/':
-//		if (b == 0) fprintf(outFile, "|!|Ошибка: деление на ноль не допустимо|!|\n");
-//		else
-		task->r = task->a/task->b;
+		if (task->b == 0) task->msg = "|!|Ошибка: деление на ноль не допустимо|!|";
+		else task->r = task->a/task->b;
 		break;
 	case '!':
-//		if ((fractionA != 1)||(a<0)) fprintf(outFile, "|!|Ошибка: под знаком факториала должно стоять целое неотрицательное число|!|\n");
-//		else
-		task->fact = factorial(task->a);
+		if ((fractionA != 1)||(task->a<0)) task->msg = "|!|Ошибка: под знаком факториала должно стоять целое неотрицательное число|!|";
+		else task->fact = factorial(task->a);
 		break;
 	case '^':
-//		if ((fractionB != 1)||(b<0)) fprintf(outFile, "|!|Ошибка: степень должна быть целым неотрицательным числом|!|\n");
-//		else
-		task->r = degree(task->a, task->b);
+		if ((fractionB != 1)||(task->b<0)) task->msg = "|!|Ошибка: степень должна быть целым неотрицательным числом|!|";
+		else task->r = degree(task->a, task->b);
 		break;
-//	default:
-//		fprintf(outFile, "|!|Была введена некорректная операция: %c|!|\n", operation);
+	default:
+		task->msg = "|!|Была введена неизвестная операция|!|";
 	}
 }
 
@@ -201,9 +208,13 @@ int main( int argc, char* argv[])
 
 		while(fscanf(input, " %c %c %f", &operation, &type, &firstNum) != EOF) //читаем посторчно, пока не достигнем конца
 		{
-			lElement *newTask = malloc(sizeof(lElement));
+			/*при создании нового элемента важно использовать именно calloc, так-как попадание в поле "nextElement"
+			 * ненулевого значения черевато сбоем в логике работы программы
+			 */
+			lElement *newTask = calloc(1, sizeof(lElement));
 			newTask->operation = operation;
 			newTask->type = type;
+			newTask->msg = NULL;
 			if(type == 'v')
 			{
 				newTask->vSize = firstNum;
@@ -217,10 +228,7 @@ int main( int argc, char* argv[])
 				newTask->a = firstNum;
 				if(operation != '!') fscanf(input, "%f", &newTask->b);
 			}
-			else
-			{	//если данный тип операндов неизвестен - пропускаем строку
-				fgets(inputFname, 100, input); //"сжигаем" оставшуюся часть строки (пожалуй можно реализовать гораздо умнее)
-			}
+			else fgets(inputFname, 100, input); //"сжигаем" оставшуюся часть строки
 			listAppend(tasks, newTask);
 		}
 		//закрываем файл после завершения чтения
@@ -228,7 +236,6 @@ int main( int argc, char* argv[])
 
 		goToHeadElement(tasks);
 
-		printf("ok r\n");
 
 		while(tasks->current != NULL) //пока не достигнем конца списка
 		{
@@ -236,15 +243,12 @@ int main( int argc, char* argv[])
 			else if(tasks->current->type == 's') simpleArithmetic(tasks->current->operation, tasks->current);
 			else
 			{	//если данный тип операндов неизвестен - пропускаем строку
-				fgets(outputFname, 100, input); //"сжигаем" оставшуюся часть строки (пожалуй можно реализовать гораздо умнее)
-//				fprintf(output, "|!|Неизвестный тип данных: %c|!|\n", type);
+				tasks->current->msg = "|!|Неизвестный тип данных|!|";
 			}
 			nextElement(tasks);
 		}
 
 		goToHeadElement(tasks);
-
-		printf("ok c\n");
 
 		FILE *output = fopen(outputFname, "w");
 		while(tasks->current != NULL) //пока не достигнем конца списка
@@ -256,6 +260,14 @@ int main( int argc, char* argv[])
 				fprintf(output, "(");
 				for(int i = 0; i<(size - 1); i++) fprintf(output, "%g, ", vector[i]);
 				fprintf(output, "%g)", vector[size - 1]);
+				free(vector);
+			}
+
+			if(curT->msg != NULL)
+			{
+				fprintf(output, "%s\n", curT->msg);
+				delElement(tasks);
+				continue;
 			}
 
 			if(curT->type == 's')
@@ -273,11 +285,10 @@ int main( int argc, char* argv[])
 				else fprintf(output, "%g", curT->r);
 			}
 			fprintf(output, "\n");
-			nextElement(tasks);
+			delElement(tasks);
 		}
 		fclose(output);
-
-		printf("ok w\n");
+		free(tasks);
 
 		//предлагаем пользователю продолжить использование программы
 		printf("Хотите продолжить? (y/n) \n");
