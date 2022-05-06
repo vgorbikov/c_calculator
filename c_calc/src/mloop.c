@@ -8,73 +8,41 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//структура элементов списка заданий
+//структура элементов очереди заданий
 //громоздко, но понятно
-typedef struct listElement{
+typedef struct qElement{
 	float *v1, *v2, *result; //поля для хранения исходных данных и результата векторных операция
 	char operation, type; //поля для хранения информации о операции и типе операндов
 	float a, b, r, vSize; //поля для хранения исходных данных и результата операций с числами
 	long long int fact; //отдельно поле для результата факториала
 	char *msg; //поле для вывода сообщений об ошибках
-	struct listElement *nextElement;
-} lElement;
+	struct qElement *nextElement;
+} qElement;
 
-//позволяет работать со списком как с самостоятельной структурной единицей
+//позволяет работать со очередью как с самостоятельной структурной единицей
 //(при том всё ещё состоящей из отдельных элементов)
-typedef struct list
+typedef struct queue
 {
-	lElement *head;
-	lElement *current;
-} list;
+	qElement *head;
+	qElement *end;
+} queue;
 
 
-//функция для добавления в список нового элемента
-int listAppend(list *toThisList, lElement *newElement)
+//функция для добавления в очередь нового элемента
+void putElement(queue *toThisQueue, qElement *newItem)
 {
-	if(toThisList->head == NULL)
-	{
-		toThisList->head = newElement;
-		toThisList->current = newElement;
-		return 0;
-	}
-	toThisList->current->nextElement = newElement;
-	toThisList->current = newElement;
-	return 0;
+	if(toThisQueue->head == NULL) toThisQueue->head = newItem;
+	if(toThisQueue->end != NULL) toThisQueue->end->nextElement = newItem;
+	toThisQueue->end = newItem;
 }
 
-
-lElement *nextElement(list *inThisList)
+//функция для получения лемента из головы очереди
+qElement *getElement(queue *fromThisQueue)
 {
-	lElement *next = inThisList->current->nextElement;
-	inThisList->current =  next;
-	return next;
+	qElement *ret = fromThisQueue->head;
+	fromThisQueue->head = fromThisQueue->head->nextElement;
+	return ret;
 }
-
-int goToHeadElement(list *inThisList)
-{
-	inThisList->current =  inThisList->head;
-	return 0;
-}
-
-int delElement(list *inThisList)
-{
-	lElement *deleted = inThisList->current;
-	if(deleted == inThisList->head)
-	{
-		inThisList->head = deleted->nextElement;
-		nextElement(inThisList);
-	}
-	else
-	{
-		goToHeadElement(inThisList);
-		while(inThisList->current->nextElement != deleted) nextElement(inThisList);
-		inThisList->current->nextElement = deleted->nextElement;
-		if(deleted->nextElement != NULL) inThisList->current = deleted->nextElement;
-	}
-	free(deleted);
-	return 0;
-}
-
 
 //Принимает на вход целое неотрицательное число
 //Возвращает его факториал
@@ -113,7 +81,7 @@ double degree(float a, float b)
 
 //начинает процедуру обработки векторного выражения
 //принимает знак заданной операции, а также указатель на файл для чтения и на файл для записи
-void vectorCalculation(char operation, lElement *task)
+void vectorCalculation(char operation, qElement *task)
 {
 	//проводим небольшую проверку на целость числа - если число целое, fractionSize = 1
 	int wholeSize = task->vSize;
@@ -143,7 +111,7 @@ void vectorCalculation(char operation, lElement *task)
 
 //начинает процедуру обработки класического арифметического выражения
 //принимает знак заданной операции, а также указатель на файл для чтения и на файл для записи
-void simpleArithmetic(char operation, lElement *task)
+void simpleArithmetic(char operation, qElement *task)
 {
 	int wholeA = task->a; //получаем целую часть числа
 	float fractionA = task->a/wholeA; //делим исходное число на целую. (если в результате получится единица - число целое)
@@ -202,8 +170,8 @@ int main( int argc, char* argv[])
 		printf("Введите имя выходного файла: ");
 		scanf("%s", &outputFname);
 
-		//создаём список, который будет хранить входные данные для подсчёта
-		list *tasks = calloc(1, sizeof(list));
+		//создаём очередь, который будет хранить входные данные для подсчёта
+		queue *tasks = calloc(1, sizeof(queue));
 		FILE *input = fopen(inputFname, "r");
 
 		while(fscanf(input, " %c %c %f", &operation, &type, &firstNum) != EOF) //читаем посторчно, пока не достигнем конца
@@ -211,7 +179,7 @@ int main( int argc, char* argv[])
 			/*при создании нового элемента важно использовать именно calloc, так-как попадание в поле "nextElement"
 			 * ненулевого значения черевато сбоем в логике работы программы
 			 */
-			lElement *newTask = calloc(1, sizeof(lElement));
+			qElement *newTask = calloc(1, sizeof(qElement));
 			newTask->operation = operation;
 			newTask->type = type;
 			newTask->msg = NULL;
@@ -229,31 +197,33 @@ int main( int argc, char* argv[])
 				if(operation != '!') fscanf(input, "%f", &newTask->b);
 			}
 			else fgets(inputFname, 100, input); //"сжигаем" оставшуюся часть строки
-			listAppend(tasks, newTask);
+			//не считываем возвращаемый элемент, а используем функцию для перехода указателя к следующему элементу
+			putElement(tasks, newTask);
 		}
 		//закрываем файл после завершения чтения
 		fclose(input);
 
-		goToHeadElement(tasks);
 
-
-		while(tasks->current != NULL) //пока не достигнем конца списка
+		queue *readyData = calloc(1, sizeof(queue)); //очередь на печать
+		while(tasks->head != NULL) //пока не достигнем конца списка
 		{
-			if(tasks->current->type == 'v') vectorCalculation(tasks->current->operation, tasks->current);
-			else if(tasks->current->type == 's') simpleArithmetic(tasks->current->operation, tasks->current);
+			qElement *complTask = tasks->head; //берём из очереди элемент для последующей обработки
+			if(tasks->head->type == 'v') vectorCalculation(complTask->operation, complTask);
+			else if(tasks->head->type == 's') simpleArithmetic(complTask->operation, complTask);
 			else
 			{	//если данный тип операндов неизвестен - пропускаем строку
-				tasks->current->msg = "|!|Неизвестный тип данных|!|";
+				complTask->msg = "|!|Неизвестный тип данных|!|";
 			}
-			nextElement(tasks);
+			putElement(readyData, complTask); //после обработки переносим элемент в очередь на печать
+			getElement(tasks);
 		}
+		free(tasks); //очередь на обработку нам больше не нужна
 
-		goToHeadElement(tasks);
 
 		FILE *output = fopen(outputFname, "w");
-		while(tasks->current != NULL) //пока не достигнем конца списка
+		while(readyData->head != NULL) //пока не достигнем конца списка
 		{
-			lElement *curT = tasks->current;
+			qElement *curT = readyData->head; //указатель с более коротким именем чисто для удобства
 			//операция, принимающая на вход массив чисел и печатающая его в файл, с соблюдением принятого оформления
 			void printVector(float *vector, int size)
 			{
@@ -266,7 +236,7 @@ int main( int argc, char* argv[])
 			if(curT->msg != NULL)
 			{
 				fprintf(output, "%s\n", curT->msg);
-				delElement(tasks);
+				getElement(readyData);
 				continue;
 			}
 
@@ -285,10 +255,11 @@ int main( int argc, char* argv[])
 				else fprintf(output, "%g", curT->r);
 			}
 			fprintf(output, "\n");
-			delElement(tasks);
+			getElement(readyData);
 		}
 		fclose(output);
 		free(tasks);
+
 
 		//предлагаем пользователю продолжить использование программы
 		printf("Хотите продолжить? (y/n) \n");
