@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//структура элементов очереди заданий
+//структура элементов ореди заданий
 //громоздко, но понятно
 typedef struct qElement{
 	float *v1, *v2, *result; //поля для хранения исходных данных и результата векторных операция
@@ -258,7 +258,7 @@ int main( int argc, char* argv[])
 			getElement(readyData);
 		}
 		fclose(output);
-		free(tasks);
+		free(readyData);
 
 
 		//предлагаем пользователю продолжить использование программы
