@@ -44,6 +44,30 @@ qElement *getElement(queue *fromThisQueue)
 	return ret;
 }
 
+typedef struct sElement
+{
+	float numData;
+	struct sElement *next;
+} sElement;
+
+typedef struct stack
+{
+	sElement *head;
+} stack;
+
+void sPutElement(stack *s, sElement *e)
+{
+	e->next = s->head;
+	s->head = e;
+}
+
+sElement *sGetElement(stack *s)
+{
+	sElement *ret = s->head;
+	s->head = s->head->next;
+	return ret;
+}
+
 //Принимает на вход целое неотрицательное число
 //Возвращает его факториал
 long long int factorial(int a)
@@ -147,13 +171,88 @@ void simpleArithmetic(char operation, qElement *task)
 	}
 }
 
+//функция для обработки выражений в обратной польской нотации
+//на фход принимает строку, содержащую арифметическое выражение, и элемент очереди на запись, для сохранения ответа
+void polishNotation(char* string, qElement *out)
+{
+	stack *stk = calloc(1, sizeof(stack));
+	int prevCharIsNum = 0; //нулевое значение указывает, что предыдущий обрабатываемый символе не был чиислом
+
+	for(int i = 0; string[i] != '\0'; i++) //пока не дойдём до конца строки
+	{
+		float aCode = string[i]; //ascii-код символа
+
+		if((aCode - 48 <10)&(aCode - 48 >=0)) //определяем, с числом ли имем дело (код нуля в acii - 48)
+		{
+			//если предыдущий символ тоже был числом, продолжаем "собирать" его поразрядно
+			if(prevCharIsNum > 0) stk->head->numData = stk->head->numData*10 + (aCode - 48);
+			else if(prevCharIsNum < 0)
+			{
+				stk->head->numData = stk->head->numData + (aCode - 48)/(degree(10, prevCharIsNum*(-1)));
+				prevCharIsNum -= 1;
+			}
+			else //если пердыдущие символ не был числом, добавляем новое число в стек
+			{
+			sElement *new = calloc(1, sizeof(sElement));
+			new->numData = aCode - 48;
+			prevCharIsNum = 1;
+			sPutElement(stk, new);
+			}
+		}
+		else //если имеем дело с символом
+		{
+			sElement *new = calloc(1, sizeof(sElement));
+			switch (string[i])
+			{
+			case '.': //встретив точку после числа, готовимся дописывать дробную часть в след. итерациях
+				if(prevCharIsNum > 0) prevCharIsNum = -1;
+				break;
+			case '+': //если это символ операции, то берём из стека операнды и результат записываем обратно в стек
+				new->numData = sGetElement(stk)->numData + sGetElement(stk)->numData;
+				sPutElement(stk, new);
+				break;
+			case '-':
+				new->numData = (sGetElement(stk)->numData - sGetElement(stk)->numData)*(-1);
+				sPutElement(stk, new);
+				break;
+			case '*':
+				new->numData = sGetElement(stk)->numData*sGetElement(stk)->numData;
+				sPutElement(stk, new);
+				break;
+			case '/':;
+				float second = sGetElement(stk)->numData;
+				new->numData = sGetElement(stk)->numData/second;
+				sPutElement(stk, new);
+				break;
+			case '!':
+				new->numData = factorial(sGetElement(stk)->numData);
+				sPutElement(stk, new);
+				break;
+			case '^':;
+				float dSecond = sGetElement(stk)->numData;
+				new->numData = degree(sGetElement(stk)->numData, dSecond);
+				sPutElement(stk, new);
+				break;
+			default:
+				prevCharIsNum = 0;
+			}
+		}
+	}
+	out->r = stk->head->numData; //результат работы записываем в очередь на вывод
+	free(stk);
+}
 
 int main( int argc, char* argv[])
 {
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
 
-	printf ("Каждая строчка во входном файле должна быть оформленна в формате:\n");
+	printf ("Программа поддерживает работу в двух режимах, в зависимости от формата данных:\n");
+	printf ("- Когда данные оформленны в обратной польской нотации\n");
+	printf ("  Данный режим позволяет обрабатывать длинные математические выражения с числами.\n");
+	printf ("- Когда данные оформленны в префиксной нотации, как в предыдущих версиях\n");
+	printf ("  Не поддерживаются операции более чем с двумя операндами, зато доступна работа с векторами.\n");
+	printf ("Каждая строчка во входном файле, для работы в режиме префиксной нотации должна быть оформленна в формате:\n");
 	printf ("ОПЕРАЦИЯ ТИП_ДАННЫХ РАЗМЕРНОСТЬ(только для векторов) ОПЕРАНДЫ(через пробел)\n");
 	printf ("|!|Для получения более подробной информации читайте файл README|!|\n\n");
 	while (1) //Главный цикл, раз за разом запускает операцию ввода математического выражения.
@@ -163,6 +262,8 @@ int main( int argc, char* argv[])
 		char outputFname[255];
 		float firstNum;
 
+		printf("Выберите режим работы (p - префиксная нотация, r - обратная польская нотация): ");
+		scanf(" %c", &choice);
 
 		printf("Введите имя входного файла: ");
 		scanf("%s", &inputFname);
@@ -174,45 +275,60 @@ int main( int argc, char* argv[])
 		queue *tasks = calloc(1, sizeof(queue));
 		FILE *input = fopen(inputFname, "r");
 
-		while(fscanf(input, " %c %c %f", &operation, &type, &firstNum) != EOF) //читаем посторчно, пока не достигнем конца
+		while(feof(input) == 0) //пока не достигнем конца
 		{
-			/*при создании нового элемента важно использовать именно calloc, так-как попадание в поле "nextElement"
-			 * ненулевого значения черевато сбоем в логике работы программы
-			 */
 			qElement *newTask = calloc(1, sizeof(qElement));
-			newTask->operation = operation;
-			newTask->type = type;
-			newTask->msg = NULL;
-			if(type == 'v')
+			if(choice == 'p')
 			{
-				newTask->vSize = firstNum;
-				newTask->v1 = malloc(firstNum*sizeof(float));
-				newTask->v2 = malloc(firstNum*sizeof(float));
-				for(int i=0; i<firstNum; i++) fscanf(input, "%f", &newTask->v1[i]);
-				for(int i=0; i<firstNum; i++) fscanf(input, "%f", &newTask->v2[i]);
+				fscanf(input, " %c %c %f", &operation, &type, &firstNum);
+				/*при создании нового элемента важно использовать именно calloc, так-как попадание в поле "nextElement"
+				 * ненулевого значения черевато сбоем в логике работы программы
+				 */
+
+				newTask->operation = operation;
+				newTask->type = type;
+				newTask->msg = NULL;
+				if(type == 'v')
+				{
+					newTask->vSize = firstNum;
+					newTask->v1 = malloc(firstNum*sizeof(float));
+					newTask->v2 = malloc(firstNum*sizeof(float));
+					for(int i=0; i<firstNum; i++) fscanf(input, "%f", &newTask->v1[i]);
+					for(int i=0; i<firstNum; i++) fscanf(input, "%f", &newTask->v2[i]);
+				}
+				else if(type == 's')
+				{	//операнды-невектора будем хранить в списке v1
+					newTask->a = firstNum;
+					if(operation != '!') fscanf(input, "%f", &newTask->b);
+				}
+				else fgets(inputFname, 100, input); //"сжигаем" оставшуюся часть строки
 			}
-			else if(type == 's')
-			{	//операнды-невектора будем хранить в списке v1
-				newTask->a = firstNum;
-				if(operation != '!') fscanf(input, "%f", &newTask->b);
+			else if(choice == 'r')
+			{
+				newTask->msg = calloc(255, sizeof(char));
+				fgets(newTask->msg, 255, input);
 			}
-			else fgets(inputFname, 100, input); //"сжигаем" оставшуюся часть строки
-			//не считываем возвращаемый элемент, а используем функцию для перехода указателя к следующему элементу
 			putElement(tasks, newTask);
 		}
 		//закрываем файл после завершения чтения
 		fclose(input);
 
-
 		queue *readyData = calloc(1, sizeof(queue)); //очередь на печать
 		while(tasks->head != NULL) //пока не достигнем конца списка
 		{
 			qElement *complTask = tasks->head; //берём из очереди элемент для последующей обработки
-			if(tasks->head->type == 'v') vectorCalculation(complTask->operation, complTask);
-			else if(tasks->head->type == 's') simpleArithmetic(complTask->operation, complTask);
-			else
-			{	//если данный тип операндов неизвестен - пропускаем строку
-				complTask->msg = "|!|Неизвестный тип данных|!|";
+			if(choice == 'p')
+			{
+				if(tasks->head->type == 'v') vectorCalculation(complTask->operation, complTask);
+				else if(tasks->head->type == 's') simpleArithmetic(complTask->operation, complTask);
+				else
+				{	//если данный тип операндов неизвестен - пропускаем строку
+					complTask->msg = "|!|Неизвестный тип данных|!|";
+				}
+			}
+			else if(choice == 'r')
+			{
+				polishNotation(complTask->msg, complTask);
 			}
 			putElement(readyData, complTask); //после обработки переносим элемент в очередь на печать
 			getElement(tasks);
@@ -221,7 +337,7 @@ int main( int argc, char* argv[])
 
 
 		FILE *output = fopen(outputFname, "w");
-		while(readyData->head != NULL) //пока не достигнем конца списка
+		while(readyData->head != NULL) //пока не достигнем конца oчереди
 		{
 			qElement *curT = readyData->head; //указатель с более коротким именем чисто для удобства
 			//операция, принимающая на вход массив чисел и печатающая его в файл, с соблюдением принятого оформления
@@ -233,28 +349,35 @@ int main( int argc, char* argv[])
 				free(vector);
 			}
 
-			if(curT->msg != NULL)
+			if(choice == 'p')
 			{
-				fprintf(output, "%s\n", curT->msg);
-				getElement(readyData);
-				continue;
-			}
+				if(curT->msg != NULL)
+				{
+					fprintf(output, "%s\n", curT->msg);
+					getElement(readyData);
+					continue;
+				}
 
-			if(curT->type == 's')
-			{
-				if(curT->operation != '!') fprintf(output, "%g %c %g = %g", curT->a, curT->operation, curT->b, curT->r);
-				else fprintf(output, "%g! = %lli", curT->a, curT->fact);
+				if(curT->type == 's')
+				{
+					if(curT->operation != '!') fprintf(output, "%g %c %g = %g", curT->a, curT->operation, curT->b, curT->r);
+					else fprintf(output, "%g! = %lli", curT->a, curT->fact);
+				}
+				else if(curT->type == 'v')
+				{
+					printVector(curT->v1, curT->vSize);
+					fprintf(output, " %c ", curT->operation);
+					printVector(curT->v2, curT->vSize);
+					fprintf(output, " = ");
+					if(curT->operation != '^') printVector(curT->result, curT->vSize);
+					else fprintf(output, "%g", curT->r);
+				}
+				fprintf(output, "\n");
 			}
-			else if(curT->type == 'v')
+			else if(choice == 'r')
 			{
-				printVector(curT->v1, curT->vSize);
-				fprintf(output, " %c ", curT->operation);
-				printVector(curT->v2, curT->vSize);
-				fprintf(output, " = ");
-				if(curT->operation != '^') printVector(curT->result, curT->vSize);
-				else fprintf(output, "%g", curT->r);
+				fprintf(output, "%g\n", readyData->head->r);
 			}
-			fprintf(output, "\n");
 			getElement(readyData);
 		}
 		fclose(output);
