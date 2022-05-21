@@ -40,8 +40,18 @@ void putElement(queue *toThisQueue, qElement *newItem)
 qElement *getElement(queue *fromThisQueue)
 {
 	qElement *ret = fromThisQueue->head;
-	fromThisQueue->head = fromThisQueue->head->nextElement;
+	fromThisQueue->head = ret->nextElement;
 	return ret;
+}
+
+void delQElement(qElement *deleted)
+{
+	if(deleted->msg != NULL) free(deleted->msg);
+	if(deleted->result != NULL) free(deleted->result);
+	if(deleted->nextElement != NULL) free(deleted->nextElement);
+	if(deleted->v1 != NULL) free(deleted->v1);
+	if(deleted->v2 != NULL) free(deleted->v2);
+	free(deleted);
 }
 
 typedef struct sElement
@@ -239,7 +249,7 @@ void polishNotation(char* string, qElement *out)
 		}
 	}
 	out->r = stk->head->numData; //результат работы записываем в очередь на вывод
-	free(stk);
+	if(stk != NULL) free(stk);
 }
 
 int main( int argc, char* argv[])
@@ -331,9 +341,9 @@ int main( int argc, char* argv[])
 				polishNotation(complTask->msg, complTask);
 			}
 			putElement(readyData, complTask); //после обработки переносим элемент в очередь на печать
-			getElement(tasks);
+			delQElement(getElement(tasks));
 		}
-		free(tasks); //очередь на обработку нам больше не нужна
+		if(tasks != NULL) free(tasks); //очередь на обработку нам больше не нужна
 
 
 		FILE *output = fopen(outputFname, "w");
@@ -346,7 +356,6 @@ int main( int argc, char* argv[])
 				fprintf(output, "(");
 				for(int i = 0; i<(size - 1); i++) fprintf(output, "%g, ", vector[i]);
 				fprintf(output, "%g)", vector[size - 1]);
-				free(vector);
 			}
 
 			if(choice == 'p')
@@ -354,7 +363,7 @@ int main( int argc, char* argv[])
 				if(curT->msg != NULL)
 				{
 					fprintf(output, "%s\n", curT->msg);
-					getElement(readyData);
+					delQElement(getElement(readyData));
 					continue;
 				}
 
@@ -378,10 +387,10 @@ int main( int argc, char* argv[])
 			{
 				fprintf(output, "%g\n", readyData->head->r);
 			}
-			getElement(readyData);
+			delQElement(getElement(readyData));
 		}
 		fclose(output);
-		free(readyData);
+		if(readyData != NULL) free(readyData);
 
 
 		//предлагаем пользователю продолжить использование программы
