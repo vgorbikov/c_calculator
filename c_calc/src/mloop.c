@@ -7,76 +7,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "custom_queue.h"
+#include "custom_stack.h"
 
-//структура элементов ореди заданий
-//громоздко, но понятно
-typedef struct qElement{
-	float *v1, *v2, *result; //поля для хранения исходных данных и результата векторных операция
-	char operation, type; //поля для хранения информации о операции и типе операндов
-	float a, b, r, vSize; //поля для хранения исходных данных и результата операций с числами
-	long long int fact; //отдельно поле для результата факториала
-	char *msg; //поле для вывода сообщений об ошибках
-	struct qElement *nextElement;
-} qElement;
-
-//позволяет работать со очередью как с самостоятельной структурной единицей
-//(при том всё ещё состоящей из отдельных элементов)
-typedef struct queue
-{
-	qElement *head;
-	qElement *end;
-} queue;
-
-
-//функция для добавления в очередь нового элемента
-void putElement(queue *toThisQueue, qElement *newItem)
-{
-	if(toThisQueue->head == NULL) toThisQueue->head = newItem;
-	if(toThisQueue->end != NULL) toThisQueue->end->nextElement = newItem;
-	toThisQueue->end = newItem;
-}
-
-//функция для получения лемента из головы очереди
-qElement *getElement(queue *fromThisQueue)
-{
-	qElement *ret = fromThisQueue->head;
-	fromThisQueue->head = ret->nextElement;
-	return ret;
-}
-
-void delQElement(qElement *deleted)
-{
-	if(deleted->msg != NULL) free(deleted->msg);
-	if(deleted->result != NULL) free(deleted->result);
-	if(deleted->nextElement != NULL) free(deleted->nextElement);
-	if(deleted->v1 != NULL) free(deleted->v1);
-	if(deleted->v2 != NULL) free(deleted->v2);
-	free(deleted);
-}
-
-typedef struct sElement
-{
-	float numData;
-	struct sElement *next;
-} sElement;
-
-typedef struct stack
-{
-	sElement *head;
-} stack;
-
-void sPutElement(stack *s, sElement *e)
-{
-	e->next = s->head;
-	s->head = e;
-}
-
-sElement *sGetElement(stack *s)
-{
-	sElement *ret = s->head;
-	s->head = s->head->next;
-	return ret;
-}
 
 //Принимает на вход целое неотрицательное число
 //Возвращает его факториал
