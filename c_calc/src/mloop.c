@@ -11,6 +11,7 @@
 #include "custom_stack.h"
 
 
+
 //Принимает на вход целое неотрицательное число
 //Возвращает его факториал
 long long int factorial(int a)
@@ -26,6 +27,7 @@ long long int factorial(int a)
 		return fact;
 	}
 }
+
 
 
 //Возводит а в степень b, принимает на вход два вещественных числа
@@ -44,6 +46,7 @@ double degree(float a, float b)
 		return deg;
 	}
 }
+
 
 
 //начинает процедуру обработки векторного выражения
@@ -74,6 +77,7 @@ void vectorCalculation(char operation, qElement *task)
 		task->msg = "|!|Такая операция для векторов не определена|!|";
 	}
 }
+
 
 
 //начинает процедуру обработки класического арифметического выражения
@@ -114,11 +118,14 @@ void simpleArithmetic(char operation, qElement *task)
 	}
 }
 
+
+
 //функция для обработки выражений в обратной польской нотации
 //на фход принимает строку, содержащую арифметическое выражение, и элемент очереди на запись, для сохранения ответа
 void polishNotation(char* string, qElement *out)
 {
 	stack *stk = calloc(1, sizeof(stack));
+	out->msg = string;
 	int prevCharIsNum = 0; //нулевое значение указывает, что предыдущий обрабатываемый символе не был чиислом
 
 	for(int i = 0; string[i] != '\0'; i++) //пока не дойдём до конца строки
@@ -145,22 +152,36 @@ void polishNotation(char* string, qElement *out)
 		else //если имеем дело с символом
 		{
 			sElement *new = calloc(1, sizeof(sElement));
+			sElement *a;
+			sElement *b;
 			switch (string[i])
 			{
 			case '.': //встретив точку после числа, готовимся дописывать дробную часть в след. итерациях
 				if(prevCharIsNum > 0) prevCharIsNum = -1;
 				break;
-			case '+': //если это символ операции, то берём из стека операнды и результат записываем обратно в стек
-				new->numData = sGetElement(stk)->numData + sGetElement(stk)->numData;
+			case '+':; //если это символ операции, то берём из стека операнды и результат записываем обратно в стек
+				a = sGetElement(stk);
+				b = sGetElement(stk);
+				new->numData = a->numData + b->numData;
 				sPutElement(stk, new);
+				delSElement(a);
+				delSElement(b);
 				break;
-			case '-':
-				new->numData = (sGetElement(stk)->numData - sGetElement(stk)->numData)*(-1);
+			case '-':;
+				a = sGetElement(stk);
+				b = sGetElement(stk);
+				new->numData = (a->numData - b->numData)*(-1);
 				sPutElement(stk, new);
+				delSElement(a);
+				delSElement(b);
 				break;
-			case '*':
-				new->numData = sGetElement(stk)->numData*sGetElement(stk)->numData;
+			case '*':;
+				a = sGetElement(stk);
+				b = sGetElement(stk);
+				new->numData = a->numData*b->numData;
 				sPutElement(stk, new);
+				delSElement(a);
+				delSElement(b);
 				break;
 			case '/':;
 				float second = sGetElement(stk)->numData;
@@ -168,8 +189,10 @@ void polishNotation(char* string, qElement *out)
 				sPutElement(stk, new);
 				break;
 			case '!':
-				new->numData = factorial(sGetElement(stk)->numData);
+				a = sGetElement(stk);
+				new->numData = factorial(a->numData);
 				sPutElement(stk, new);
+				delSElement(a);
 				break;
 			case '^':;
 				float dSecond = sGetElement(stk)->numData;
@@ -184,6 +207,8 @@ void polishNotation(char* string, qElement *out)
 	out->r = stk->head->numData; //результат работы записываем в очередь на вывод
 	if(stk != NULL) free(stk);
 }
+
+
 
 int main( int argc, char* argv[])
 {
@@ -217,6 +242,8 @@ int main( int argc, char* argv[])
 		//создаём очередь, который будет хранить входные данные для подсчёта
 		queue *tasks = calloc(1, sizeof(queue));
 		FILE *input = fopen(inputFname, "r");
+
+
 
 		while(feof(input) == 0) //пока не достигнем конца
 		{
@@ -256,6 +283,8 @@ int main( int argc, char* argv[])
 		//закрываем файл после завершения чтения
 		fclose(input);
 
+
+
 		queue *readyData = calloc(1, sizeof(queue)); //очередь на печать
 		while(tasks->head != NULL) //пока не достигнем конца списка
 		{
@@ -274,9 +303,10 @@ int main( int argc, char* argv[])
 				polishNotation(complTask->msg, complTask);
 			}
 			putElement(readyData, complTask); //после обработки переносим элемент в очередь на печать
-			delQElement(getElement(tasks));
+			delQElement(getElement(tasks)); //ВНИМАНИЕ - УДАЛЕНИЕ ИСПОЛЬЗОВАННОГО ЭЛЕМЕНТА ТАКИ ПРОИСХОДИТ!
 		}
 		if(tasks != NULL) free(tasks); //очередь на обработку нам больше не нужна
+
 
 
 		FILE *output = fopen(outputFname, "w");
@@ -318,12 +348,14 @@ int main( int argc, char* argv[])
 			}
 			else if(choice == 'r')
 			{
-				fprintf(output, "%g\n", readyData->head->r);
+				for(int i = 0; ((readyData->head->msg[i] != '\n')&(readyData->head->msg[i] != '\0')); i++) fprintf(output, "%c", readyData->head->msg[i]);
+				fprintf(output, " = %g\n", readyData->head->r);
 			}
-			delQElement(getElement(readyData));
+			delQElement(getElement(readyData)); //опять же - удаление использованного элемента очереди
 		}
 		fclose(output);
 		if(readyData != NULL) free(readyData);
+
 
 
 		//предлагаем пользователю продолжить использование программы

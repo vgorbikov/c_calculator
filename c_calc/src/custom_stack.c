@@ -14,3 +14,9 @@ sElement *sGetElement(stack *s)
 	s->head = s->head->next;
 	return ret;
 }
+
+
+void delSElement(sElement *deleted)
+{
+	if(deleted != NULL) free(deleted); //а что ещё нужно?
+}

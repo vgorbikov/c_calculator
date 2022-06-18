@@ -17,4 +17,6 @@ void sPutElement(stack *s, sElement *e);
 
 sElement *sGetElement(stack *s);
 
+void delSElement(sElement *deleted);
+
 #endif //custom_stack

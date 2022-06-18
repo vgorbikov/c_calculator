@@ -14,6 +14,7 @@ void putElement(queue *toThisQueue, qElement *newItem)
 //функция для получения лемента из головы очереди
 qElement *getElement(queue *fromThisQueue)
 {
+	if(fromThisQueue->head == NULL) return NULL;
 	qElement *ret = fromThisQueue->head;
 	fromThisQueue->head = ret->nextElement;
 	return ret;
@@ -22,10 +23,12 @@ qElement *getElement(queue *fromThisQueue)
 
 void delQElement(qElement *deleted)
 {
-	if(deleted->msg != NULL) free(deleted->msg);
-	if(deleted->result != NULL) free(deleted->result);
-	if(deleted->nextElement != NULL) free(deleted->nextElement);
-	if(deleted->v1 != NULL) free(deleted->v1);
-	if(deleted->v2 != NULL) free(deleted->v2);
-	free(deleted);
+	if(deleted != NULL)
+	{
+		if(deleted->msg != NULL) free(deleted->msg);
+		if(deleted->result != NULL) free(deleted->result);
+		if(deleted->v1 != NULL) free(deleted->v1);
+		if(deleted->v2 != NULL) free(deleted->v2);
+		free(deleted);
+	}
 }
